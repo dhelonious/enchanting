@@ -292,7 +292,7 @@ function enchanting:register_tool(mod, tool, enchant)
 
 	if mod == "3d_armor" then
 		local original_armor_groups = original_tool.groups
-		local light_source = original_tool.light_source
+		local light_source = original_tool.light_source or 0
 		local armorcaps = {}
 		armorcaps.not_in_creative_inventory = 1
 
