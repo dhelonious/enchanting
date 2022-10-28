@@ -20,8 +20,8 @@ local function to_percent(orig_value, final_value)
 	return abs(ceil(((final_value - orig_value) / orig_value) * 100))
 end
 
-function enchanting:get_tooltip(enchant, orig_caps, fleshy, light_source)
-	local bonus = {durable=0, efficiency=0, damages=0, light=0}
+function enchanting:get_tooltip(enchant, orig_caps, orig_groups, fleshy, light_source)
+	local bonus = {durable=0, efficiency=0, damages=0, light=0, strength=0, speed=0, jump=0}
 	if orig_caps then
 		bonus.durable = to_percent(orig_caps.uses, orig_caps.uses * enchanting.uses)
 		local sum_caps_times = 0
@@ -30,6 +30,11 @@ function enchanting:get_tooltip(enchant, orig_caps, fleshy, light_source)
 		end
 		local average_caps_time = sum_caps_times / #orig_caps.times
 		bonus.efficiency = to_percent(average_caps_time, average_caps_time - enchanting.times)
+	end
+	if orig_groups then
+		bonus.strength = to_percent(orig_groups.armor_use, orig_groups.armor_use * enchanting.strength)
+		bonus.speed = to_percent(orig_groups.physics_speed or 0, enchanting.speed)
+		bonus.jump = to_percent(orig_groups.physics_jump or 0, enchanting.jump)
 	end
 	if fleshy then
 		bonus.damages = to_percent(fleshy, fleshy + enchanting.damages)
@@ -43,12 +48,13 @@ function enchanting:get_tooltip(enchant, orig_caps, fleshy, light_source)
 		fast    = {"#74ff49", " (+"..bonus.efficiency.."%)"},
 		sharp   = {"#ffff00", " (+"..bonus.damages.."%)"},
 		bright  = {"#ffffff", " (+"..bonus.light.."%)"},
-		strong  = {"#ff3d3d", ""},
-		speed   = {"#fd5eff", ""}
+		strong  = {"#ff3d3d", " (+"..bonus.strength.."%)"},
+		speed   = {"#fd5eff", " (+"..bonus.speed.."%)"},
+		jump    = {"#fd5eff", " (+"..bonus.jump.."%)"},
 	}
 	return minetest.colorize and
 		minetest.colorize(specs[enchant][1],
-				  "\n"..cap(enchant)..specs[enchant][2]) or
+		"\n"..cap(enchant)..specs[enchant][2]) or
 		"\n"..cap(enchant)..specs[enchant][2]
 end
 
@@ -73,14 +79,14 @@ function enchanting.formspec(pos, num)
 	local enchant_buttons = {
 		[[ image_button[3.9,0.85;4,0.92;bg_btn.png;fast;Efficiency]
 		image_button[3.9,1.77;4,1.12;bg_btn.png;durable;Durability]
-		image_button[3.9,2.9;4,1.12;bg_btn.png;bright;Brightness] ]],
+		image_button[3.9,2.9;4,0.92;bg_btn.png;bright;Brightness] ]],
 		[[ image_button[3.9,0.85;4,0.92;bg_btn.png;sharp;Sharpness]
 		image_button[3.9,1.77;4,1.12;bg_btn.png;bright;Brightness] ]],
-		[[ image_button[3.9,0.85;4,0.92;bg_btn.png;strong;Strength]",
+		[[ image_button[3.9,0.85;4,0.92;bg_btn.png;strong;Strength]
 		image_button[3.9,1.77;4,1.12;bg_btn.png;bright;Brightness] ]],
 		[[ image_button[3.9,0.85;4,0.92;bg_btn.png;strong;Strength]
 		image_button[3.9,1.77;4,1.12;bg_btn.png;speed;Speed]
-		image_button[3.9,2.9;4,1.12;bg_btn.png;bright;Brightness] ]],
+		image_button[3.9,2.9;4,0.92;bg_btn.png;bright;Brightness] ]],
 	}
 
 	formspec = formspec..(enchant_buttons[num] or "")
@@ -92,8 +98,9 @@ function enchanting.on_put(pos, listname, _, stack)
 		local stackname = stack:get_name()
 		local tool_groups = {
 			"axe, pick, shovel",
+			"sword",
 			"chestplate, leggings, helmet",
-			"sword", "boots"
+			"boots",
 		}
 
 		for idx, tools in pairs(tool_groups) do
@@ -278,7 +285,7 @@ function enchanting:register_tool(mod, tool, enchant)
 
 		minetest.register_tool(":"..mod..":enchanted_"..tool.."_"..enchant, {
 			description = "Enchanted "..cap(tool)..
-				self:get_tooltip(enchant, original_groupcaps[group], fleshy, light_source),
+				self:get_tooltip(enchant, original_groupcaps[group], nil, fleshy, light_source),
 			inventory_image = original_tool.inventory_image.."^[colorize:violet:50",
 			wield_image = original_tool.wield_image,
 			groups = {not_in_creative_inventory=1},
@@ -292,31 +299,29 @@ function enchanting:register_tool(mod, tool, enchant)
 
 	if mod == "3d_armor" then
 		local original_armor_groups = original_tool.groups
+		local armor_groups = table.copy(original_armor_groups)
 		local light_source = original_tool.light_source or 0
-		local armorcaps = {}
-		armorcaps.not_in_creative_inventory = 1
 
-		for armor_group, value in pairs(original_armor_groups) do
-			if enchant == "strong" then
-				armorcaps[armor_group] = ceil(value * enchanting.strength)
-			elseif enchant == "speed" then
-				armorcaps[armor_group] = value
-				armorcaps.physics_speed = enchanting.speed
-				armorcaps.physics_jump = enchanting.jump
-			elseif enchant == "bright" then
-				light_source = light_source + enchanting.light
-			end
+		if enchant == "strong" then
+			armor_groups.armor_heal = ceil(original_armor_groups.armor_heal * enchanting.strength)
+			armor_groups.armor_use = ceil(original_armor_groups.armor_use * enchanting.strength)
+		elseif enchant == "speed" then
+			armor_groups.physics_speed = enchanting.speed
+			armor_groups.physics_jump = enchanting.jump
+		elseif enchant == "bright" then
+			light_source = light_source + enchanting.light
 		end
+		armor_groups.not_in_creative_inventory = 1
 
 		minetest.register_tool(":"..mod..":enchanted_"..tool.."_"..enchant, {
 			description = "Enchanted "..cap(tool)..
-				self:get_tooltip(enchant),
-			inventory_image = original_tool.inventory_image,
+				self:get_tooltip(enchant, nil, original_armor_groups, nil, light_source),
+			inventory_image = original_tool.inventory_image.."^[colorize:violet:50",
 			texture = "3d_armor_"..tool,
 			wield_image = original_tool.wield_image,
-			groups = armorcaps,
-			wear = 0,
+			groups = armor_groups,
 			light_source = light_source,
+			wear = 0,
 		})
 	end
 end
