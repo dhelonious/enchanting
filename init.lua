@@ -6,13 +6,13 @@ local mese_cost = 1
 
 -- Force of the enchantments.
 enchanting = {
-	uses     = 1.2, -- Durability
-	times    = 0.1, -- Efficiency
-	damages  = 1,   -- Sharpness
-	light    = 12,  -- Brightness
-	strength = 1.2, -- Armor strength (3d_armor only)
-	speed    = 0.2, -- Player speed (3d_armor only)
-	jump     = 0.2, -- Player jumping (3d_armor only)
+	uses     = 1.5,  -- Durability
+	times    = 0.25, -- Efficiency
+	damages  = 1,    -- Sharpness
+	light    = 12,   -- Brightness
+	strength = 1.5,  -- Armor strength (3d_armor only)
+	speed    = 0.4,  -- Player speed (3d_armor only)
+	jump     = 0.25, -- Player jumping (3d_armor only)
 }
 
 local function cap(S) return S:gsub("^%l", string.upper) end
